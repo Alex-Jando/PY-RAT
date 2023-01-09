@@ -1,4 +1,4 @@
-# PY-RAT
+# PY-RAT (PIRATE lol)
 PY-RAT is a RAT ( Remote Access Trojan ) build on python. It allows you to have full control over any computer that connects to you with a set of basic commands.
 ## Basic Usage
 - Enter your IP address or have it auto detected
