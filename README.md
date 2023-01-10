@@ -21,5 +21,6 @@ PY-RAT (pirate) is a RAT ( Remote Access Trojan ) built on python. It allows you
 ### Features In Development
 - Adding the option to prompt the client with a UAC to get admin access
 - The ability to quiet execute a command in the user's terminal
-- Get command to get basic client system detail: SYS-NAME, PLATFORM, DRIVES, etc.
+- Command to get basic client system detail: SYS-NAME, PLATFORM, DRIVES, etc.
 - Support for MAC & LINUX
+- Build a repository of some basic scripts: key logger, camera control, messages on screen, etc.
