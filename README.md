@@ -16,6 +16,7 @@ PY-RAT (pirate) is a RAT ( Remote Access Trojan ) built on python. It allows you
 - Copy File
 - Run File
 - Execute Commands Quietly
+- Install Python Quietly
 - Remove File
 - Create Folder
 - Delete Folder
