@@ -69,7 +69,7 @@ HELP_MSG = \
 ╠════════════════════════╬═════════════════════════════════════════════════════════════════════════════════════════════════════════════════╣
 ║ camshare               ║ Live brodcasts their camera to your computer in a window.                                                       ║
 ╠════════════════════════╬═════════════════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ screencamshare         ║ Live brodcasts their screen to your computer in a window.                                                       ║
+║ screenshare            ║ Live brodcasts their screen to your computer in a window.                                                       ║
 ╠════════════════════════╩═════════════════════════════════════════════════════════════════════════════════════════════════════════════════╣
 ║                                                                                                                                          ║
 ╠══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╣
@@ -618,6 +618,8 @@ while True:
                 CURRENT_CONNECTION_DIRECTORY = ''
                 CONNECTIONS.pop(CONNECTION_ADDR)
                 print('\nCONNECTION WAS FORCED CLOSED\n')
+
+                cv2.destroyAllWindows()
 
         except:
             print('\nPLEASE CHOOSE A VAILD CONNECTION!\n')

